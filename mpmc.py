@@ -11,7 +11,7 @@ async def message_cb(room, event):
         room.display_name, room.user_name(event.sender), event.body))
 
 
-async def main():
+def get_args():
     parser = argparse.ArgumentParser(
         conflict_handler='resolve',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -34,14 +34,23 @@ async def main():
                                  or os.path.expanduser('~/.local/share')) +
                         '/mm',
                         help='data storage directory')
-    args = parser.parse_args()
-    password = subprocess.run(
-        ['sh', '-c', args.pass_command],
-        stdout=subprocess.PIPE).stdout.decode('utf-8').rstrip('\n')
-    client = AsyncClient(args.homeserver, args.user)
+    ns = parser.parse_args()
+    password = subprocess.run(['sh', '-c', ns.pass_command],
+                              stdout=subprocess.PIPE).stdout.decode('utf-8')
+    return {
+        'user': ns.user,
+        'pass': password.rstrip('\n'),
+        'homeserver': ns.homeserver.replace('https://', '', 1),
+        'dir': ns.directory.rstrip('/')
+    }
+
+
+async def main():
+    client = AsyncClient('https://' + args['homeserver'], args['user'])
     client.add_event_callback(message_cb, RoomMessageText)
-    await client.login(password)
+    await client.login(args['pass'])
     await client.sync_forever(timeout=30000)
 
 
+args = get_args()
 asyncio.get_event_loop().run_until_complete(main())
