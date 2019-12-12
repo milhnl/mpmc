@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
+from datetime import datetime
 from nio import (AsyncClient, RoomMessageText)
 import os
 import subprocess
+import time
 
 
-async def message_cb(room, event):
-    print("Message received for room {} | {}: {}".format(
-        room.display_name, room.user_name(event.sender), event.body))
+async def handle_message(room, event):
+    dirname = os.path.join(args['dir'], args['homeserver'], args['user'],
+                           room.room_id, event.sender)
+    filename = os.path.join(dirname, f"{event.event_id}:{args['homeserver']}")
+    timestamp = event.server_timestamp / 1000
+    os.makedirs(dirname, mode=0o700, exist_ok=True)
+    with open(filename, 'wb') as f:
+        f.write(event.body.encode('utf-8'))
+    os.utime(filename, (timestamp, timestamp))
+    print(filename)
 
 
 def get_args():
@@ -47,7 +56,7 @@ def get_args():
 
 async def main():
     client = AsyncClient('https://' + args['homeserver'], args['user'])
-    client.add_event_callback(message_cb, RoomMessageText)
+    client.add_event_callback(handle_message, RoomMessageText)
     await client.login(args['pass'])
     await client.sync_forever(timeout=30000)
 
