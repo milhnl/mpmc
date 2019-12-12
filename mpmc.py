@@ -17,7 +17,7 @@ async def handle_message(room, event):
     with open(filename, 'wb') as f:
         f.write(event.body.encode('utf-8'))
     os.utime(filename, (timestamp, timestamp))
-    print(filename)
+    print(filename, flush=True)
 
 
 def get_args():
