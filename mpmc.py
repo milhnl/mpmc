@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
-from datetime import datetime
 from nio import (AsyncClient, RoomMessageText)
 import os
 import subprocess
-import time
 
 
 async def handle_message(room, event):
-    roompath = os.path.join(args['dir'], args['server'], args['user'],
-                            room.room_id)
+    roompath = os.path.join(args['clientdir'], room.room_id)
     srcpath = os.path.join(roompath, event.sender)
     msgpath = os.path.join(srcpath, f"{event.event_id}:{args['server']}")
     timestamp = event.server_timestamp / 1000
@@ -66,4 +63,5 @@ async def main():
 
 if __name__ == "__main__":
     args = get_args()
+    args['clientdir'] = os.path.join(args['dir'], args['server'], args['user'])
     asyncio.run(main())
