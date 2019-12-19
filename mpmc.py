@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import aiofiles
 import argparse
 import asyncio
 from nio import (AsyncClient, RoomMessageText)
@@ -18,6 +19,26 @@ async def handle_message(room, event):
         f.write(event.body)
     os.utime(msgpath, (timestamp, timestamp))
     print(msgpath, flush=True)
+
+
+async def fifo_listener(room):
+    roompath = os.path.join(args['clientdir'], room.room_id)
+    os.makedirs(roompath, mode=0o700, exist_ok=True)
+    path = os.path.join(roompath, "in")
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    os.mkfifo(path, mode=0o700)
+    while True:
+        async with aiofiles.open(path, mode="rt", encoding="utf-8") as f:
+            async for line in f:
+                await client.room_send(room_id=room.room_id,
+                                       message_type="m.room.message",
+                                       content={
+                                           "msgtype": "m.text",
+                                           "body": line
+                                       })
 
 
 def get_args():
@@ -57,7 +78,11 @@ def get_args():
 async def main():
     client.add_event_callback(handle_message, RoomMessageText)
     await client.login(args['pass'])
-    await client.sync_forever(timeout=30000)
+    await client.sync()  #We need the list of rooms
+    await asyncio.gather(
+        client.sync_forever(timeout=30000),
+        *[fifo_listener(room) for room in client.rooms.values()],
+        return_exceptions=True)
 
 
 if __name__ == "__main__":
