@@ -9,10 +9,10 @@ import time
 
 
 async def handle_message(room, event):
-    roompath = os.path.join(args['dir'], args['homeserver'], args['user'],
+    roompath = os.path.join(args['dir'], args['server'], args['user'],
                             room.room_id)
     srcpath = os.path.join(roompath, event.sender)
-    msgpath = os.path.join(srcpath, f"{event.event_id}:{args['homeserver']}")
+    msgpath = os.path.join(srcpath, f"{event.event_id}:{args['server']}")
     timestamp = event.server_timestamp / 1000
     os.makedirs(srcpath, mode=0o700, exist_ok=True)
     with open(os.path.join(roompath, "name"), 'wt', encoding="utf-8") as f:
@@ -35,8 +35,8 @@ def get_args():
                         '--pass-command',
                         required=True,
                         help='command to run to get password')
-    parser.add_argument('-h',
-                        '--homeserver',
+    parser.add_argument('-s',
+                        '--server',
                         required=True,
                         default='https://matrix.org',
                         help='homeserver')
@@ -52,13 +52,13 @@ def get_args():
     return {
         'user': ns.user,
         'pass': password.rstrip('\n'),
-        'homeserver': ns.homeserver.replace('https://', '', 1),
+        'server': ns.server.replace('https://', '', 1),
         'dir': ns.directory.rstrip('/')
     }
 
 
 async def main():
-    client = AsyncClient('https://' + args['homeserver'], args['user'])
+    client = AsyncClient('https://' + args['server'], args['user'])
     client.add_event_callback(handle_message, RoomMessageText)
     await client.login(args['pass'])
     await client.sync_forever(timeout=30000)
