@@ -62,7 +62,7 @@ def get_args():
                         '--directory',
                         default=os.path.join(
                             os.environ.get('XDG_DATA_HOME')
-                            or os.path.expanduser('~/.local/share'), 'mm'),
+                            or os.path.expanduser('~/.local/share'), 'mpmc'),
                         help='data storage directory')
     ns = parser.parse_args()
     password = subprocess.run(['sh', '-c', ns.pass_command],
