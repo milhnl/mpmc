@@ -55,7 +55,6 @@ def get_args():
 
 
 async def main():
-    client = AsyncClient('https://' + args['server'], args['user'])
     client.add_event_callback(handle_message, RoomMessageText)
     await client.login(args['pass'])
     await client.sync_forever(timeout=30000)
@@ -63,5 +62,12 @@ async def main():
 
 if __name__ == "__main__":
     args = get_args()
+    client = AsyncClient('https://' + args['server'], args['user'])
     args['clientdir'] = os.path.join(args['dir'], args['server'], args['user'])
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+    finally:
+        asyncio.run(client.close())
+        os._exit(1)  #To kill the other threads.
