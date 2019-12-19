@@ -42,9 +42,9 @@ def get_args():
                         help='homeserver')
     parser.add_argument('-d',
                         '--directory',
-                        default=(os.environ.get('XDG_DATA_HOME')
-                                 or os.path.expanduser('~/.local/share')) +
-                        '/mm',
+                        default=os.path.join(
+                            os.environ.get('XDG_DATA_HOME')
+                            or os.path.expanduser('~/.local/share'), 'mm'),
                         help='data storage directory')
     ns = parser.parse_args()
     password = subprocess.run(['sh', '-c', ns.pass_command],
