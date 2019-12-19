@@ -9,15 +9,18 @@ import time
 
 
 async def handle_message(room, event):
-    dirname = os.path.join(args['dir'], args['homeserver'], args['user'],
-                           room.room_id, event.sender)
-    filename = os.path.join(dirname, f"{event.event_id}:{args['homeserver']}")
+    roompath = os.path.join(args['dir'], args['homeserver'], args['user'],
+                            room.room_id)
+    srcpath = os.path.join(roompath, event.sender)
+    msgpath = os.path.join(srcpath, f"{event.event_id}:{args['homeserver']}")
     timestamp = event.server_timestamp / 1000
-    os.makedirs(dirname, mode=0o700, exist_ok=True)
-    with open(filename, 'wb') as f:
-        f.write(event.body.encode('utf-8'))
-    os.utime(filename, (timestamp, timestamp))
-    print(filename, flush=True)
+    os.makedirs(srcpath, mode=0o700, exist_ok=True)
+    with open(os.path.join(roompath, "name"), 'wt', encoding="utf-8") as f:
+        f.write(room.display_name)
+    with open(msgpath, 'wt', encoding="utf-8") as f:
+        f.write(event.body)
+    os.utime(msgpath, (timestamp, timestamp))
+    print(msgpath, flush=True)
 
 
 def get_args():
