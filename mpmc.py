@@ -64,5 +64,6 @@ async def main():
     await client.sync_forever(timeout=30000)
 
 
-args = get_args()
-asyncio.get_event_loop().run_until_complete(main())
+if __name__ == "__main__":
+    args = get_args()
+    asyncio.run(main())
