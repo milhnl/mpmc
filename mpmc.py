@@ -2,6 +2,7 @@
 import aiofiles
 import argparse
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from nio import (AsyncClient, RoomMessageText)
 import os
 import subprocess
@@ -21,7 +22,16 @@ async def handle_message(room, event):
     print(msgpath, flush=True)
 
 
-async def fifo_listener(room):
+async def send_message(room, text):
+    await client.room_send(room_id=room.room_id,
+                           message_type="m.room.message",
+                           content={
+                               "msgtype": "m.text",
+                               "body": text
+                           })
+
+
+def fifo_listener(room, loop):
     roompath = os.path.join(args['clientdir'], room.room_id)
     os.makedirs(roompath, mode=0o700, exist_ok=True)
     path = os.path.join(roompath, "in")
@@ -31,14 +41,15 @@ async def fifo_listener(room):
         pass
     os.mkfifo(path, mode=0o700)
     while True:
-        async with aiofiles.open(path, mode="rt", encoding="utf-8") as f:
-            async for line in f:
-                await client.room_send(room_id=room.room_id,
-                                       message_type="m.room.message",
-                                       content={
-                                           "msgtype": "m.text",
-                                           "body": line
-                                       })
+        with open(path, mode="r") as f:
+            text = f.read().rstrip("\n")
+            loop.create_task(send_message(room, text))
+
+
+async def fifo_listener_proxy(room):
+    io_pool_exc = ThreadPoolExecutor()
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(io_pool_exc, lambda: fifo_listener(room, loop))
 
 
 def get_args():
@@ -80,8 +91,8 @@ async def main():
     await client.login(args['pass'])
     await client.sync()  #We need the list of rooms
     await asyncio.gather(
-        client.sync_forever(timeout=30000),
-        *[fifo_listener(room) for room in client.rooms.values()],
+        client.sync_forever(timeout=500),
+        *[fifo_listener_proxy(room) for room in client.rooms.values()],
         return_exceptions=True)
 
 
