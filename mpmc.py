@@ -16,10 +16,11 @@ async def handle_message(room, event):
     os.makedirs(srcpath, mode=0o700, exist_ok=True)
     with open(os.path.join(roompath, "name"), 'wt', encoding="utf-8") as f:
         f.write(room.display_name)
-    with open(msgpath, 'wt', encoding="utf-8") as f:
-        f.write(event.body)
-    os.utime(msgpath, (timestamp, timestamp))
-    print(msgpath, flush=True)
+    if not os.path.exists(msgpath):
+        with open(msgpath, 'wt', encoding="utf-8") as f:
+            f.write(event.body)
+        os.utime(msgpath, (timestamp, timestamp))
+        print(msgpath, flush=True)
 
 
 async def send_message(room, text):
