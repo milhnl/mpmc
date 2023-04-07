@@ -2,6 +2,7 @@
 import aiofiles
 import argparse
 import asyncio
+import platform
 from concurrent.futures import ThreadPoolExecutor
 from nio import (AsyncClient, RoomMessageText)
 import os
@@ -72,27 +73,56 @@ def get_args():
                         help='homeserver')
     parser.add_argument('-d',
                         '--directory',
-                        default=os.path.join(
+                        default=os.environ.get('MPMC_DATA_HOME')
+                        or os.path.join(
                             os.environ.get('XDG_DATA_HOME')
                             or os.path.expanduser('~/.local/share'), 'mpmc'),
                         type=lambda x: x.rstrip('/'),
                         help='data storage directory')
-    return parser.parse_args()
+    parser.add_argument('--device-name',
+                        default=platform.node(),
+                        help='device name')
+    parser.add_argument('--access-token-command',
+                        default='cat "$MPMC_DATA_HOME/access-token"',
+                        help='command to run to get access token')
+    parser.add_argument('--access-token-store-command',
+                        default='cat >"$MPMC_DATA_HOME/access-token"',
+                        help='command to run to save access token')
+    parser.add_argument('--device-id-command',
+                        default='cat "$MPMC_DATA_HOME/device-id"',
+                        help='command to run to get access token')
+    parser.add_argument('--device-id-store-command',
+                        default='cat >"$MPMC_DATA_HOME/device-id"',
+                        help='command to run to save access token')
+    args = parser.parse_args()
+    os.environ['MPMC_DATA_HOME'] = args.directory
+    os.makedirs(args.directory, exist_ok=True)
+    return args
 
 
-async def do_subprocess(cmd):
+async def do_subprocess(cmd, input=None):
     proc = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-
-    stdout, stderr = await proc.communicate()
+        cmd,
+        stdin=(input or None) and asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+    stdout, stderr = await proc.communicate(input and input.encode('utf-8'))
     return stdout.decode('utf-8').rstrip('\n')
 
 
 async def main():
     client.add_event_callback(handle_message, RoomMessageText)
-    password = await do_subprocess(args.pass_command)
-    await client.login(password)
-
+    access_token = await do_subprocess(args.access_token_command)
+    if access_token == '':
+        password = await do_subprocess(args.pass_command)
+        resp = await client.login(password, device_name=args.device_name)
+        await do_subprocess(args.device_id_store_command, resp.device_id)
+        await do_subprocess(args.access_token_store_command, resp.access_token)
+    else:
+        device_id = await do_subprocess(args.device_id_command)
+        client.restore_login(user_id=args.user,
+                             device_id=device_id,
+                             access_token=access_token)
     await client.sync()  #We need the list of rooms
     await asyncio.gather(
         client.sync_forever(timeout=500),
