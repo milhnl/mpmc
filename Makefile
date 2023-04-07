@@ -4,3 +4,6 @@
 install:
 	cp mpmc.py "${DESTDIR}${PREFIX}/bin/mpmc"
 	chmod +x "${DESTDIR}${PREFIX}/bin/mpmc"
+
+format:
+	yapf -i -r .
